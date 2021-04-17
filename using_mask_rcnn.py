@@ -8,6 +8,7 @@ import cv2 # cv
 import torchvision #torch vision
 import colorsys
 import random
+from random import randint
 import glob
 import time
 import natsort # sort file list by number
@@ -40,7 +41,7 @@ parser.add_argument('--n_cpu', type=int, default=8, help='number of cpu threads 
 parser.add_argument('--input_nc', type=int, default=3, help='number of channels of input data')
 opt = parser.parse_args()
 
-"""
+
 # COCO Class names
 # Index of the class in the list is its ID. For example, to get ID of
 # the teddy bear class, use: class_names.index('teddy bear')
@@ -59,7 +60,7 @@ class_names = ['BG', 'person', 'bicycle', 'car', 'motorcycle', 'airplane',
                'keyboard', 'cell phone', 'microwave', 'oven', 'toaster',
                'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors',
                'teddy bear', 'hair drier', 'toothbrush']
-"""
+
 
 
 #######################################
@@ -82,7 +83,7 @@ def init(data_path):
                             batch_size=opt.batchSize, shuffle=False, num_workers=opt.n_cpu)
     return dataloader
 
-def apply_mask_save(image,mask,labels,file_name,save_path):
+def human_remove(image,mask,labels,file_name,save_path):
     image = cv2.cvtColor(image,cv2.COLOR_BGR2RGB)    
     image = cv2.cvtColor(image,cv2.COLOR_RGB2RGBA)
     
@@ -100,8 +101,53 @@ def apply_mask_save(image,mask,labels,file_name,save_path):
                 for c in range(channel):                
                     image[:,:,c] = np.where(mask[n] == 255, 0, image[:,:,c])                                                        
             else :
-                continue          
+                continue                   
     cv2.imwrite(save_path +'seg_' + file_name ,image)    
+def apply_mask(image,mask,labels,boxes,file_name,save_path):
+    image = cv2.cvtColor(image,cv2.COLOR_BGR2RGB)    
+    # image = cv2.cvtColor(image,cv2.COLOR_RGB2RGBA)
+    
+    alpha = 1 
+    beta = 0.6 # transparency for the segmentation map
+    gamma = 0 # scalar added to each sum
+    COLORS = np.random.uniform(0, 255, size=(len(class_names), 3))    
+    
+    # image[:,:,3] = 255.0
+    channel = image.shape[2]
+    area = 0    
+    _,_,w,h = mask.shape    
+    segmentation_map = np.zeros((w,h,3),np.uint8)
+    
+    for n in range(mask.shape[0]): 
+        if labels[n] == 0:
+            continue
+        else:
+            color = COLORS[random.randrange(0,len(COLORS))]
+            segmentation_map[:,:,0] = np.where(mask[n] > 0.5, COLORS[labels[n]][0], 0)
+            segmentation_map[:,:,1] = np.where(mask[n] > 0.5, COLORS[labels[n]][1], 0)
+            segmentation_map[:,:,2] = np.where(mask[n] > 0.5, COLORS[labels[n]][2], 0)            
+            image = cv2.addWeighted(image,alpha,segmentation_map,beta,gamma,dtype = cv2.CV_8U)
+        # draw the bounding boxes around the objects        
+        cv2.rectangle(image, boxes[n][0], boxes[n][1],color = color ,thickness = 2)
+        
+        print(class_names[labels[n]])
+        # put the label text above the objects
+        cv2.putText(image , class_names[labels[n]], (boxes[n][0][0], boxes[n][0][1]-10), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, color, 
+                    thickness=2, lineType=cv2.LINE_AA)
+    cv2.imwrite(save_path +'seg_2' + file_name ,image)  
+
+def random_colors(N, bright=True):
+    """
+    Generate random colors.
+    To get visually distinct colors, generate them in HSV space then
+    convert to RGB.
+    """
+    brightness = 1.0 if bright else 0.7
+    hsv = [(i / N, 1, brightness) for i in range(N)]
+    colors = list(map(lambda c: colorsys.hsv_to_rgb(*c), hsv))
+    random.shuffle(colors)
+    return colors    
     
         
 def tensor2im(tensor):
@@ -125,17 +171,32 @@ def mask_rcnn(file_list,dataloader,save_path):
         # if opt.cuda == True:
             # result = model(img.to('cuda'))            
         # else :        
+        #use cuda
+        #result = model(img.to('cuda'))
+        #use cpu
         result = model(img)
             
         # torch.cuda.synchronize()                        
         # end = time.time()        
         # print("time : " + str(end-start))
         image = tensor2im(img)
+        scores = list(result[0]['scores'].detach().numpy())
+        thresholded_preds_inidices = [scores.index(i) for i in scores if i > 0.965]
+        thresholded_preds_count = len(thresholded_preds_inidices)        
         mask = result[0]['masks']
+        mask = mask[:thresholded_preds_count]
         labels = result[0]['labels']        
+        boxes = [[(int(i[0]), int(i[1])), (int(i[2]), int(i[3]))]  for i in result[0]['boxes']]
+        boxes = boxes[:thresholded_preds_count]
+        
         mask = mask.data.float().numpy()        
         
-        apply_mask_save(image,mask,labels,file_list[i],save_path)
+        # human_remove(image,mask,labels,file_list[i],save_path)
+        apply_mask(image,mask,labels,boxes,file_list[i],save_path)
+        
+
+
+    
         
 def main():
     if not os.path.exists(opt.save_path):
