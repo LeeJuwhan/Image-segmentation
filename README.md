@@ -15,8 +15,9 @@ For example
 ----------------------------
 ## Input image
 
-![Alt text](/images/lovelyz_unforgattable.jpg)
+![Alt text](/images/1111.jpg)
 
 ## Output image
 
-![Alt text](/output/seg_lovelyz_unforgattable.jpg)
+![Alt text](/output/output_1.jpg)
+![Alt text](/output/output_2.jpg)
