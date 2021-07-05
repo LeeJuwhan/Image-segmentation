@@ -7,9 +7,9 @@ Human remove using MASK_RCNN
 
 Enviorment
 -----------
-1. torch version 1.8.1
-2. torch cuda 10.2
-3. torch vision 0.9.1
+1. torch version >=1.8.1
+2. torch cuda >= 10.2
+3. torch vision >= 0.9.1
 
 For example
 ----------------------------
