@@ -93,15 +93,16 @@ def human_remove(image,mask,labels,file_name,save_path):
     _,_,w,h = mask.shape
     for n in range(mask.shape[0]):
             if labels[n] == 1:                
-                mask[n] = np.where(mask[n] >0.5, 255,0)                                                                                         
+                mask[n] = np.where(mask[n] >0.5, 255,0)
             else :
                 continue        
     for n in range(mask.shape[0]):
             if labels[n] == 1:
                 for c in range(channel):                
-                    image[:,:,c] = np.where(mask[n] == 255, 0, image[:,:,c])                                                        
+                    image[:,:,c] = np.where(mask[n] == 255, 0, image[:,:,c])
             else :
-                continue                   
+                continue                
+    #image save
     cv2.imwrite(save_path +'seg_' + file_name ,image)    
 def apply_mask(image,mask,labels,boxes,file_name,save_path):
     image = cv2.cvtColor(image,cv2.COLOR_BGR2RGB)    
@@ -111,8 +112,6 @@ def apply_mask(image,mask,labels,boxes,file_name,save_path):
     beta = 0.6 # transparency for the segmentation map
     gamma = 0 # scalar added to each sum
     COLORS = np.random.uniform(0, 255, size=(len(class_names), 3))    
-    
-    # image[:,:,3] = 255.0
     channel = image.shape[2]
     area = 0    
     _,_,w,h = mask.shape    
@@ -135,6 +134,7 @@ def apply_mask(image,mask,labels,boxes,file_name,save_path):
         cv2.putText(image , class_names[labels[n]], (boxes[n][0][0], boxes[n][0][1]-10), 
                     cv2.FONT_HERSHEY_SIMPLEX, 1, color, 
                     thickness=2, lineType=cv2.LINE_AA)
+    #image save
     cv2.imwrite(save_path +'seg_2' + file_name ,image)  
 
 def random_colors(N, bright=True):
@@ -191,7 +191,7 @@ def mask_rcnn(file_list,dataloader,save_path):
         
         mask = mask.data.float().numpy()        
         
-        # human_remove(image,mask,labels,file_list[i],save_path)
+        human_remove(image,mask,labels,file_list[i],save_path)
         apply_mask(image,mask,labels,boxes,file_list[i],save_path)
         
 
